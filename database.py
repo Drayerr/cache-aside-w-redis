@@ -22,6 +22,40 @@ def get_db_connection():
         return None
 
 
+# Creates products table if not exists.
+def setup_database(connection):
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS products (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    price NUMERIC(10, 2) NOT NULL
+                );
+            """
+            )
+            connection.commit()
+            print("[DB SETUP] Table 'products' verified/created successfully!")
+
+    except Exception as e:
+        print(f"[DB SETUP] Fail while creating table: {e}")
+
+
+def insert_products(connection, name: str, price: float):
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                "INSERT INTO products (name, price) VALUES (%s, %s);", (name, price)
+            )
+            connection.commit()
+            print(f"[DB INSERT] Product '{name}' successfully inserted.")
+
+    except Exception as e:
+        print(f"[DB INSERT] Error while inserting product: {e}")
+        connection.rollback()
+
+
 # Execution
 def test():
     # Connect
@@ -32,6 +66,8 @@ def test():
         return
 
     # Events
+    setup_database(connection)
+    insert_products(connection, "laptop", 499.99)
 
     # Closing connection
     try:

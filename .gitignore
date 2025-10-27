@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Env
+venv/
+
+# Credentials
+config.py
+.vscode/
+
+# DB logs
+*.log

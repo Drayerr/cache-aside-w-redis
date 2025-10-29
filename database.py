@@ -1,16 +1,15 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from config import PG_HOST, PG_DB, PG_USER, PG_PASS, PG_PORT
-from redis_cache import get_redis_connection
+from redis_cache import get_redis_connection, test_redis
 
 
-# Functions
 def get_db_connection():
     try:
         connection = psycopg2.connect(
             host=PG_HOST, database=PG_DB, user=PG_USER, password=PG_PASS, port=PG_PORT
         )
-        # If connection went well, returns connection object.
+
         print("\n✅ Database connected! ")
         return connection
 
@@ -23,7 +22,6 @@ def get_db_connection():
         return None
 
 
-# Creates products table if not exists.
 def setup_database(db_connection):
     try:
         with db_connection.cursor() as cur:
@@ -43,7 +41,7 @@ def setup_database(db_connection):
         print(f"[DB SETUP] Fail while creating table: {e}")
 
 
-def insert_products(db_connection, name: str, price: float):
+def insert_product(db_connection, name: str, price: float):
     try:
         with db_connection.cursor() as cur:
             cur.execute(
@@ -57,12 +55,40 @@ def insert_products(db_connection, name: str, price: float):
         db_connection.rollback()
 
 
+def get_product_by_id(connection, product_id: int):
+    if not connection:
+        return None
+
+    try:
+        with connection.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, name, price FROM products WHERE id = %s;", (product_id,)
+            )
+            product = cur.fetchone()
+
+            import time
+
+            time.sleep(0.3)
+
+            if not product:
+                return None
+            return dict(product)
+
+    except Exception as e:
+        print(f"[DB SELECT] Error searching item: {e}")
+        return None
+    finally:
+        if connection:
+            connection.close()
+
+
 def get_all_products(db_connection):
     try:
         with db_connection.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT id, name, price FROM products;")
             products = cur.fetchall()
             print(f"[DB SELECT] Total products found: {len(products)}")
+
             return products
 
     except Exception as e:
@@ -70,32 +96,4 @@ def get_all_products(db_connection):
         return []
 
 
-# Execution
-def test():
-    # Connect DB
-    print("\nAttempting to connect to the database...")
-    db_connection = get_db_connection()
-    if not db_connection:
-        print("\n🚨 Error, exiting test.")
-        return
-
-    # Connect Redis
-    print("\nAttempting to connect to Redis...")
-    redis_connection = get_redis_connection()
-
-    # Events
-    setup_database(db_connection)
-    insert_products(db_connection, "smartphone", 249.99)
-    get_all_products(db_connection)
-
-    # Closing db connection
-    try:
-        db_connection.close()
-        print("DB Connection closed.")
-    except Exception as e:
-        print(f"Error closing connection: {e}")
-
-    print("Test finished.")
-
-
-test()
+get_all_products(db_connection=get_db_connection())

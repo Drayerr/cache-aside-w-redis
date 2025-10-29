@@ -1,6 +1,13 @@
-# cache-aside-w-redis/redis_cache.py
 import redis
-from config import REDIS_HOST, REDIS_PORT, REDIS_DB
+import json
+import decimal
+from config import REDIS_HOST, REDIS_PORT, REDIS_DB, CACHE_TTL
+
+
+def decimal_default_encoder(obj):
+    if isinstance(obj, decimal.Decimal):
+        return str(obj)
+    raise TypeError
 
 
 def get_redis_connection():
@@ -20,15 +27,39 @@ def get_redis_connection():
         return None
 
 
+r = get_redis_connection()
+
+
 def test_redis():
-    r = get_redis_connection()
     if r:
-        r.set("test_key", "Hello Redis!")
+        r.set(
+            "test_key",
+            "Hello Redis!",
+        )
         value = r.get("test_key")
         r.delete("test_key")
         print(f"[REDIS TEST] Key 'test_key' set and read successfully. Value: {value}")
         return r
     return None
+
+
+def get_from_cache(key: str) -> dict or None:
+    if not r:
+        return None
+
+    data_json = r.get(key)
+    if data_json:
+        return json.loads(data_json)
+
+    return None
+
+
+def set_in_cache(key: str, data: dict, ttl: int = CACHE_TTL):
+    if not r:
+        return
+
+    data_json = json.dumps(data, default=decimal_default_encoder)
+    r.setex(key, ttl, data_json)
 
 
 if __name__ == "__main__":
